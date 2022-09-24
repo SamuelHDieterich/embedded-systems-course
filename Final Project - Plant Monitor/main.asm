@@ -26,7 +26,7 @@
 ;    DEFINITIONS    ;
 ;-------------------;
 
-; R1:0 - Load/Store inderectly from/into program memory (lpm/spm)
+; R1:0 - Load/Store indirectly from/into program memory (lpm/spm)
 ; R31:16 - Immediate addressing - ldi Rd, value
 
 ; Value read by the sensor
@@ -47,6 +47,11 @@
 ; Temporary register
 .DEF    temp          = R21 
 
+; Number of the sensor (0:2)
+.DEF    sensor        = R22
+
+; Selected type of plant (0:2)
+.DEF    plant_type    = R23
 
 
 ;--------------;
@@ -56,10 +61,10 @@
 ;--- SETUP THE STACK ---
 .MACRO STACK
 
-  ldi   R16, HIGH(RAMEND)
-  out   sph, R16          ; HIGH(STACK) address
-  ldi   R16, LOW(RAMEND)
-  out   spl, R16          ; LOW(STACK) address
+  ldi   temp, HIGH(RAMEND)
+  out   sph, temp           ; HIGH(STACK) address
+  ldi   temp, LOW(RAMEND)
+  out   spl, temp           ; LOW(STACK) address
 
 .ENDMACRO
 
@@ -69,29 +74,37 @@
 .MACRO TIMER
 
   ; Initialize counter
-  clr   R16
-  sts   TCNT1L, R16 ; LOW(TCNT1) - 16 bits counter
-  sts   TCNT1H, R16 ; HIGH(TCNT1) - 16 bits counter
+  clr   temp
+  sts   TCNT1L, temp  ; LOW(TCNT1) - 16 bits counter
+  sts   TCNT1H, temp  ; HIGH(TCNT1) - 16 bits counter
   
   ; Set prescaler to 1:1024
   ; 00000100 OR 00000001 = 00000101
   ; Waveform generation mode to CTC
   ; 00000101 OR 00001000 = 00001101
-  ldi   R16, (1<<CS02) || (1<<CS00) || (1<<WGM12)
-  sts   TCCR1B, R16
+  ldi   temp, (1<<CS02) || (1<<CS00) || (1<<WGM12)
+  sts   TCCR1B, temp
   
   ; Interrupt by overflow
-  ldi   R16, (1<<TOIE1)
-  sts   TIMSK1, R16
+  ldi   temp, (1<<TOIE1)
+  sts   TIMSK1, temp
   
   ; Value to be compared - 39062 = 0x9896
-  ldi   R16, 0x96
-  sts   OCR1AL, R16 ; LOW(OCR1A)
-  ldi   R16, 0X98
-  sts   OCR1AH, R16 ; HIGH(OCR1A)
+  ldi   temp, 0x96
+  sts   OCR1AL, temp ; LOW(OCR1A)
+  ldi   temp, 0X98
+  sts   OCR1AH, temp ; HIGH(OCR1A)
 
 .ENDMACRO
 
+
+;--- SET THE DEFAULT VALUES ---
+.MACRO DEFAULT_VALUES
+
+  ldi   sensor, 0
+  ldi   plant_type, 0
+
+.ENDMACRO
 
 
 ;-------------------;
@@ -107,8 +120,10 @@ rjmp    MAIN
 ; Setup
 INIT:
 
+  ; Execute macros
   STACK
   TIMER
+
   rjmp  LOOP
 
 
@@ -117,6 +132,25 @@ LOOP:
 
   rjmp  LOOP
 
+
+; MEMORY SCHEMA
+; -------------
+
+;        | +00 | +01 | +02 | +03 | +04 | +05 | +06 | +07 | +08 | +09 | +0A | ...
+;--------|-----------|-----|-----|-----|-----|-----------|-----------------|-----
+; ANCHOR |     A     |  B  |  C  |  D  |  E  |     F     |        G        |...
+;--------|-----------|-----------|-----------|-----------|-----------|-----------
+;   +10  |     H ...
+;--------|     ...
+
+; (A) - Added values (5s x 120[max])
+; (B) - Counter (max = 120) - 10 minutes
+; (C) - Counter (max = 144) - 1 day
+; (D) - Verification - 10 minutes
+; (E) - Verification - 1 day
+; (F) - Last value - 10 minutes (2 bytes)
+; (G) - Last value - 1 day (3 bytes)
+; (H) - Last records - 10 minutes (2 bytes x 144)
 
 ; Main function - trigger by timer
 MAIN:
@@ -135,10 +169,11 @@ MAIN:
   ; Load counter
   ldd   counter_mem, Z+2
 
-  ; Add new value to the sum
-  ; Workaround (add overflow): shift right
+  ; Shift right (10 bit -> 9 bit)
   lsr   mem_value_h
   ror   mem_value_l
+
+  ; Add new value to the sum
   add   mem_value_l, read_l
   adc   mem_value_h, read_h
 
@@ -151,27 +186,62 @@ MAIN:
   ; Call NEXT_TIMESTAMP subroutine: store values to new spots and clear this stage
   breq  NEXT_TIMESTAMP
   ; Else (counter < maximum value): store values in same spot
-  st    Z, mem_value_l
+  st    Z,   mem_value_l
   std   Z+1, mem_value_h
   std   Z+2, counter_mem
 
-  ; Set next sensor
+  ; Verify sensor number
+  cpi sensor, 2
+  breq  END_MAIN  ; If sensor = 2, end the loop
+
+  ; Increment sensor number
+  inc sensor
+
+  ; Restart MAIN with next sensor 
+  rjmp  MAIN
+
+END_MAIN:
+
+  ; Clear sensor number
+  clr   sensor
 
   ; Return
-  ret
+  reti
 
 
 ; Indicates the top left position of the memory table
 START_MEM:
 
-  ; Check the number of the sensor
-  ; TODO
-
   ; Set appropriate value
   ; Sensor 0: 0x0100
-  ; Sesnor 1: 0x01A0
-  ; Sesnor 2: 0x0240
+  ; Sensor 1: 0x01A0
+  ; Sensor 2: 0x0240
+
+  ; Check the number of the sensor
+  cpi   sensor, 0
+  breq  _FIRST_POSITION
+  cpi   sensor, 1
+  breq  _SECOND_POSITION
+
+_THIRD_POSITION: 
+
+  ldi   mem_address_l, 0x40
+  ldi   mem_address_h, 0x02
+
+  ; Return
+  ret
+
+_FIRST_POSITION:
+
   ldi   mem_address_l, 0x00
+  ldi   mem_address_h, 0x01
+
+  ; Return
+  ret
+
+_SECOND_POSITION:
+
+  ldi   mem_address_l, 0xA0
   ldi   mem_address_h, 0x01
 
   ; Return
@@ -190,22 +260,62 @@ NEXT_TIMESTAMP:
 
   ; Load next counter from memory
   ldd   counter_mem, Z+3
-  ; Check maximum value before incrementing
-  ; If maximum value: reset second counter, check 2nd verification
-  ; TODO
+
+  ; Change anchor position
+  ldi   temp, 0x10                  ; skip one row
+  add   mem_address_l, temp
+  clr   temp                        ; clear temp
+  lsl   counter_mem                 ; counter x2 (can overflow)
+  adc   mem_address_h, temp         ; add just the carry from previous operation
+  add   mem_address_l, counter_mem  ; add counter x2
+  adc   mem_address_h, temp         ; add carry from possible overflow
+
+  ; Save new record
+  std   Z,   mem_value_h
+  std   Z+1, mem_value_l
+
+  ; Reset memory position
+  call START_MEM
+
+  ; Load counter again and increment it
+  ldd   counter_mem, Z+3
   inc   counter_mem
 
-  ; Save value into right spot
-  ; Z = Z + 0x10 + (2nd_counter << 1) [overflow]
+  ; Check counter value
+  cpi   counter_mem, 144
+  brne  _NO_NEW_CYCLE
 
-  ; If 2nd verification == 1
-  ;call  AVERAGE_MEAN
+_NEW_CYCLE:
 
-  ; Set next sensor
+  ; Verification - 1 day = 1 (true)
+  ldi   temp, 1
+  std   Z+5, temp
+
+  ; Clear counter - 1 day
+  clr   temp
+  std   Z+3, temp
+
+_NO_NEW_CYCLE: ; Just skip the _NEW_CYCLE part
+
+  ; Load verification - 1 day
+  ldd   temp, Z+5
+  
+  ; Check if it is true
+  sbrc  temp, 0
+  call  CALC_AVERAGE
+
+    ; Verify sensor number
+  cpi sensor, 2
+  breq  END_MAIN  ; If sensor = 2, end the loop
+
+  ; Increment sensor number
+  inc sensor
+
+  ; Restart MAIN with next sensor 
+  rjmp  MAIN
+
+
+CALC_AVERAGE:
 
   ; Return
   ret
-
-
-
-
