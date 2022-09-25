@@ -9,7 +9,7 @@
 ; COURSE:       Embedded Systems Projects
 ; PROFESSOR:    Milton Tumelero
 ; TEAM:         Helena, Marlon, Mirian and Samuel
-; Date:         Setember, 2022
+; Date:         September, 2022
 
 
 
@@ -34,21 +34,22 @@
 .DEF    read_h        = R17   ; HIGH
 
 ; Value stored in memory
-.DEF    mem_value_l   = R18   ; LOW
-.DEF    mem_value_h   = R19   ; HIGH
+.DEF    mem_value0    = R18   ; First byte
+.DEF    mem_value1    = R19   ; Second byte
+.DEF    mem_value2    = R20   ; Third byte
 
 ; Counter from memory
-.DEF    counter_mem   = R20
+.DEF    counter_mem   = R21
 
 ; Memory address (top left position) - Z
 .DEF    mem_address_l = R30
 .DEF    mem_address_h = R31
 
 ; Temporary register
-.DEF    temp          = R21 
+.DEF    temp          = R22 
 
 ; Number of the sensor (0:2)
-.DEF    sensor        = R22
+.DEF    sensor        = R23
 
 ; Selected type of plant (0:2)
 .DEF    plant_type    = R23
@@ -164,19 +165,19 @@ MAIN:
   call  START_MEM
 
   ; Load previously value
-  ld    mem_value_h, Z
-  ldd   mem_value_l, Z+1
+  ld    mem_value1, Z
+  ldd   mem_value0, Z+1
   
   ; Load counter
   ldd   counter_mem, Z+2
 
   ; Shift right (10 bit -> 9 bit)
-  lsr   mem_value_h
-  ror   mem_value_l
+  lsr   mem_value1
+  ror   mem_value0
 
   ; Add new value to the sum
-  add   mem_value_l, read_l
-  adc   mem_value_h, read_h
+  add   mem_value0, read_l
+  adc   mem_value1, read_h
 
   ; Increment counter
   inc   counter_mem
@@ -187,8 +188,8 @@ MAIN:
   ; Call NEXT_TIMESTAMP subroutine: store values to new spots and clear this stage
   breq  NEXT_TIMESTAMP
   ; Else (counter < maximum value): store values in same spot
-  st    Z,   mem_value_l
-  std   Z+1, mem_value_h
+  st    Z,   mem_value0
+  std   Z+1, mem_value1
   std   Z+2, counter_mem
 
   ; Verify sensor number
@@ -283,8 +284,8 @@ _CLEAN_MEM:
 NEXT_TIMESTAMP:
 
   ; Store the new value on the last value spot
-  std   Z+6, mem_value_h
-  std   Z+7, mem_value_l
+  std   Z+6, mem_value1
+  std   Z+7, mem_value0
 
   ; Check verification location
   ldi   temp, 1
@@ -303,8 +304,8 @@ NEXT_TIMESTAMP:
   adc   mem_address_h, temp         ; add carry from possible overflow
 
   ; Save new record
-  std   Z,   mem_value_h
-  std   Z+1, mem_value_l
+  std   Z,   mem_value1
+  std   Z+1, mem_value0
 
   ; Reset memory position
   call START_MEM
@@ -348,6 +349,42 @@ _NO_NEW_CYCLE: ; Just skip the _NEW_CYCLE part
 
 
 CALC_AVERAGE:
+
+  ; Change anchor position
+  ldi   temp, 0x10                  ; skip one row
+  add   mem_address_l, temp
+
+  ; Reset mem values and counter
+  clr   mem_value0
+  clr   mem_value1
+  clr   mem_value2
+  clr   counter_mem
+
+  ; Helper loop 
+_SUM_RECORDS:
+
+  ; Load record and add it to mem_value[0:2]
+  ld    temp, Z+
+  add   mem_value0, temp
+  ld    temp, Z+
+  adc   mem_value1, temp
+  clr   temp
+  adc   mem_value2, temp
+
+  ; Increment counter
+  inc   counter_mem
+
+  ; If counter != 144 (all records), repeat
+  cpi   counter_mem, 144
+  brne  _SUM_RECORDS
+  
+  ; Reset anchor position
+  call  START_MEM
+
+  ; Store values in memory
+  std   Z+8,  mem_value2
+  std   Z+9,  mem_value1
+  std   Z+10, mem_value0
 
   ; Return
   ret
