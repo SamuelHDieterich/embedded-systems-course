@@ -123,6 +123,7 @@ INIT:
   ; Execute macros
   STACK
   TIMER
+  DEFAULT_VALUES
 
   rjmp  LOOP
 
@@ -243,6 +244,37 @@ _SECOND_POSITION:
 
   ldi   mem_address_l, 0xA0
   ldi   mem_address_h, 0x01
+
+  ; Return
+  ret
+
+
+;--- CLEAN/RESET THE MEMORY ---
+; With this function, all the history of
+; the plant will be deleted.
+RESET_MEMORY:
+
+  ; Start from the beginning of the memory address
+  ldi   mem_address_l, 0x00
+  ldi   mem_address_h, 0x01
+
+  ; Helper subroutine
+_CLEAN_MEM:
+
+  ; Clear temp
+  clr   temp
+
+  ; Store clean value
+  st    Z+, temp
+
+  ; Check end of the memory (0x02E0)
+  cpi   mem_address_l, 0xE0
+  ldi   temp, 0x02
+  cpc   mem_address_h, temp ; Compare with carry
+
+  ; SREG[1] = Zero flag
+  ; Zero flag is set, numbers are equal
+  brbc  1, _CLEAN_MEM   ; If not equal, repeat the process
 
   ; Return
   ret
