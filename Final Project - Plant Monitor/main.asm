@@ -70,6 +70,24 @@
 .ENDMACRO
 
 
+;--- CONFIGURE PINS MODE ---
+.MACRO CONFIG_PINS
+
+  ; Arduino - D13:8 (LEDs)
+  ldi   temp, 0b00111111
+  out   DDRB, temp
+
+  ; Arduino - D7:0 (LEDs[7:5] and Buttons[4:0])
+  ldi   temp, 0b11100000
+  out   DDRD, temp
+
+  ; Arduino - A2:0 (Sensors)
+  ldi   temp, 0b00000111
+  out   DDRC, temp
+
+.ENDMACRO
+
+
 ;--- INTERRUPT TIMER ---
 ; Trigger every 5 seconds
 .MACRO TIMER
@@ -123,6 +141,7 @@ INIT:
 
   ; Execute macros
   STACK
+  CONFIG_PINS
   TIMER
   DEFAULT_VALUES
 
