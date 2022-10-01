@@ -157,9 +157,30 @@ LOOP:
 ; Main function - trigger by timer
 MAIN:
 
-  ; Turn on ADC for sensor
+  ; REFS1:0 - Voltage reference         = 01 (Vcc=5V)
+  ; ADLAR   - Left adjust result        = 0 (Right adjust)
+  ; MUX3:0  - Analog channel selection  = Depend on the sensor
+  ldi   temp, (REFS1<<0) || (REFS0<<1)
+  add   temp, sensor                    ; Set ADC for right sensor
+  sts   ADMUX, R16
+
+  ; Turn on ADC and start conversion
+  ; ADEN    - Enable              = 1 (turn on)
+  ; ADSC    - Start conversion    = 1 (convert)
+  ; ADATE   - Auto trigger enable = 0 (manualy)
+  ; ADIF    - Interrupt flag      = 0
+  ; ADIE    - Interrupt enable    = 0
+  ; ADPS2:0 - Prescaler           = 101 (1:32)
+  ldi   temp, (ADEN<<1) || (ADSC<<1) || (ADPS2<<1) || (ADPS1<<0) || (ADPS0<<1)
+  sts   ADCSRA, temp
+
   ; Read value and save it on register
-  ; TODO
+  lds   read_l, ADCL
+  lds   read_h, ADCH
+
+  ; Turn off ADC (power safe)
+  clr   temp
+  sts   ADCSRA, temp
 
   ; Prepare the memory address
   call  START_MEM
