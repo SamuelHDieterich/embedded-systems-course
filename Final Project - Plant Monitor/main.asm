@@ -89,7 +89,7 @@
 
 
 ;--- BUTTONS INTERRUPT ---
-.MACRO
+.MACRO BUTTONS_INTERRUPT
 
   ; INT1 (Arduino D3) - ISC11 and ISC10
   ; INT0 (Arduino D2) - ISC01 and ISC00
@@ -164,6 +164,7 @@ INIT:
   ; Execute macros
   STACK
   CONFIG_PINS
+  BUTTONS_INTERRUPT
   TIMER
   DEFAULT_VALUES
 
