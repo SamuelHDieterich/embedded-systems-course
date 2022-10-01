@@ -9,7 +9,7 @@
 ; COURSE:       Embedded Systems Projects
 ; PROFESSOR:    Milton Tumelero
 ; TEAM:         Helena, Marlon, Mirian and Samuel
-; Date:         September, 2022
+; Date:         September-October, 2022
 
 
 
@@ -59,7 +59,7 @@
 ;    MACROS    ;
 ;--------------;
 
-;--- SETUP THE STACK ---
+;--- STACK SETUP ---
 .MACRO STACK
 
   ldi   temp, HIGH(RAMEND)
@@ -70,7 +70,7 @@
 .ENDMACRO
 
 
-;--- CONFIGURE PINS MODE ---
+;--- PINS MODE ---
 .MACRO CONFIG_PINS
 
   ; Arduino - D13:8 (LEDs)
@@ -88,7 +88,27 @@
 .ENDMACRO
 
 
-;--- INTERRUPT TIMER ---
+;--- BUTTONS INTERRUPT ---
+.MACRO
+
+  ; INT1 (Arduino D3) - ISC11 and ISC10
+  ; INT0 (Arduino D2) - ISC01 and ISC00
+  ; 00 - Low level
+  ; 01 - Any logical change
+  ; 10 - Falling edge
+  ; 11 - Rising edge
+  ldi   temp, (ISC11<<1) || (ISC10<<1)
+  sts   EICRA, temp
+
+  ; INT1 - Enable external INT1 interrupt request
+  ; INT0 - Enable external INT0 interrupt request
+  ldi   temp, (INT1<<1)
+  out   EIMSK, temp
+
+.ENDMACRO
+
+
+;--- TIMER INTERRUPT ---
 ; Trigger every 5 seconds
 .MACRO TIMER
 
@@ -132,6 +152,8 @@
 
 .org    0x0000
 rjmp    INIT
+.org    0x0004
+rjmp    BUTTONS
 .org    0x001A ; timer1 vector
 rjmp    MAIN
 
@@ -145,6 +167,9 @@ INIT:
   TIMER
   DEFAULT_VALUES
 
+  ; Enable interrupts
+  sei
+
   rjmp  LOOP
 
 
@@ -152,6 +177,32 @@ INIT:
 LOOP:
 
   rjmp  LOOP
+
+
+BUTTONS:
+
+  ; Backup status register value
+  in    temp, SREG
+  push  temp
+
+  ; Check reset memory operation
+  sbis  PORTC, 4      ; Reset buttom
+  call  RESET_MEMORY  ; Clear memory
+
+  ; Change plant type (preference: 0>1>2)
+  sbis  PORTC, 2
+  ldi   plant_type, 2
+  sbis  PORTC, 1
+  ldi   plant_type, 1
+  sbis  PORTC, 0
+  ldi   plant_type, 0
+
+  ; recover status register value
+  pop   temp
+  out   SREG, temp
+
+  ; Return
+  reti
 
 
 ; MEMORY SCHEMA
