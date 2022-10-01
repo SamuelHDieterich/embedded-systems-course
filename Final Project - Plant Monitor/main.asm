@@ -52,6 +52,8 @@
 .DEF    sensor        = R23
 
 ; Selected type of plant (0:2)
+.DEF    plant_type    = R24
+
 .DEF    plant_type    = R23
 
 
@@ -187,15 +189,15 @@ BUTTONS:
   push  temp
 
   ; Check reset memory operation
-  sbis  PORTC, 4      ; Reset buttom
+  sbic  PORTC, 4      ; Reset buttom
   call  RESET_MEMORY  ; Clear memory
 
   ; Change plant type (preference: 0>1>2)
-  sbis  PORTC, 2
+  sbic  PORTC, 2
   ldi   plant_type, 2
-  sbis  PORTC, 1
+  sbic  PORTC, 1
   ldi   plant_type, 1
-  sbis  PORTC, 0
+  sbic  PORTC, 0
   ldi   plant_type, 0
 
   ; recover status register value
@@ -285,7 +287,7 @@ MAIN:
   std   Z+2, counter_mem
 
   ; Verify sensor number
-  cpi sensor, 2
+  cpi   sensor, 2
   breq  END_MAIN  ; If sensor = 2, end the loop
 
   ; Increment sensor number
