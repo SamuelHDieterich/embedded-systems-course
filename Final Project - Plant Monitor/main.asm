@@ -160,12 +160,12 @@
 ;    CODE MEMORY    ;
 ;-------------------;
 
-  .org    0x0000
-  rjmp    INIT
-  .org    0x0004
-  rjmp    BUTTONS
-  .org    0x001A ; timer1 vector
-  rjmp    MAIN
+  .org  0x0000
+  rjmp  INIT
+  .org  0x0004
+  rjmp  BUTTONS
+  .org  0x001A ; timer1 vector
+  rjmp  MAIN
 
 
 ; Setup
