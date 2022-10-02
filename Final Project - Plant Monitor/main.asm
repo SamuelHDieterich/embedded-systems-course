@@ -54,7 +54,15 @@
 ; Selected type of plant (0:2)
 .DEF    plant_type    = R24
 
-.DEF    plant_type    = R23
+; LEDs output result
+.DEF    led_output_b  = R25   ; PORTB output
+.DEF    led_output_d  = R26   ; PORTD output
+
+; Plant conditions (changed by plant type and sensor)
+.DEF    low_sensor_l  = R0
+.DEF    low_sensor_h  = R1
+.DEF    high_sensor_l = R2
+.DEF    high_sensor_h = R3
 
 
 ;--------------;
@@ -301,6 +309,14 @@ END_MAIN:
   ; Clear sensor number
   clr   sensor
 
+  ; Clear led_output registers
+  clr   led_output_b
+  clr   led_output_d
+
+  ; Verify the condition of the plant
+  ; Update the LEDs status
+  call  PLANT_CONDITION
+
   ; Return
   reti
 
@@ -482,3 +498,250 @@ _SUM_RECORDS:
 
   ; Return
   ret
+
+
+; Check plant type and its conditions 
+PLANT_CONDITION:
+
+  ; Call appropriate subroutine
+  ; Change parameters value
+  ; Calculation: value/2 * 120 * 144
+  ; Aproximation with two most significant bytes
+  cpi   plant_type, 1
+  brlo  SUCCULENT
+  breq  VEGETABLE
+  rjmp  PINE
+
+_END_PLANT_SELECTION:
+
+  ; Set memory position
+  call  START_MEM
+
+  ; Load value from memory
+  ldd   mem_value0, Z+5
+  ldd   mem_value2, Z+8
+  ldd   mem_value1, Z+9
+
+  ; Check verification
+  sbrc  mem_value0, 0
+  rjmp  OK_SENSOR_RESULT
+
+  ; Compare limits
+  cp    mem_value2, low_sensor_h
+  cpc   mem_value1, low_sensor_l
+  brsh  _NEXT_COMPARE
+  rjmp  LOW_SENSOR_RESULT
+
+_NEXT_COMPARE:
+
+  cp    mem_value2, high_sensor_h
+  cpc   mem_value1, high_sensor_l
+
+  ; Workaround: brlo
+  in    temp, SREG
+  sbrc  temp, 0   
+  rjmp  OK_SENSOR_RESULT
+
+  rjmp  HIGH_SENSOR_RESULT
+
+_END_SENSOR_COMPARE:
+
+  ; Increment sensor
+  inc   sensor
+
+  ; Verify sensor number
+  cpi   sensor, 3
+  brne  PLANT_CONDITION
+
+  ; Update LEDs status
+  out   PORTB, led_output_b
+  out   PORTD, led_output_d
+
+  ; Return
+  ret
+
+
+SUCCULENT:
+
+  cpi   sensor, 0
+  brlo  _SUCCULENT_LUMINOSITY
+  breq  _SUCCULENT_TEMPERATURE
+  rjmp  _SUCCULENT_HUMIDITY
+
+_SUCCULENT_LUMINOSITY:
+
+  ; Low: < 200
+  ldi   mem_value0, 0x5E
+  ldi   mem_value1, 0x1A
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 600
+  ldi   mem_value0, 0x1A
+  ldi   mem_value1, 0x4F
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+_SUCCULENT_TEMPERATURE:
+
+  ; Low: < 250
+  ldi   mem_value0, 0xF6
+  ldi   mem_value1, 0x20
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 850
+  ldi   mem_value0, 0x10
+  ldi   mem_value1, 0x70
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+_SUCCULENT_HUMIDITY:
+
+  ; Low: < 300
+  ldi   mem_value0, 0x8D
+  ldi   mem_value1, 0x27
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 700
+  ldi   mem_value0, 0x49
+  ldi   mem_value1, 0x5C
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+
+VEGETABLE:
+
+  cpi   sensor, 0
+  brlo  _VEGETABLE_LUMINOSITY
+  breq  _VEGETABLE_TEMPERATURE
+  rjmp  _VEGETABLE_HUMIDITY
+
+_VEGETABLE_LUMINOSITY:
+
+  ; Low: < 300
+  ldi   mem_value0, 0x8D
+  ldi   mem_value1, 0x27
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 850
+  ldi   mem_value0, 0x10
+  ldi   mem_value1, 0x70
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+_VEGETABLE_TEMPERATURE:
+
+  ; Low: < 200
+  ldi   mem_value0, 0x5E
+  ldi   mem_value1, 0x1A
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 750
+  ldi   mem_value0, 0xE1
+  ldi   mem_value1, 0x62
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+_VEGETABLE_HUMIDITY:
+
+  ; Low: < 500
+  ldi   mem_value0, 0xEB
+  ldi   mem_value1, 0x41
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 700
+  ldi   mem_value0, 0x49
+  ldi   mem_value1, 0x5C
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+
+PINE:
+
+  cpi   sensor, 0
+  brlo  _PINE_LUMINOSITY
+  breq  _PINE_TEMPERATURE
+  rjmp  _PINE_HUMIDITY
+
+_PINE_LUMINOSITY:
+
+  ; Low: < 400
+  ldi   mem_value0, 0xBC
+  ldi   mem_value1, 0x34
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 950
+  ldi   mem_value0, 0x3F
+  ldi   mem_value1, 0x7D
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+_PINE_TEMPERATURE:
+
+  ; Low: < 150
+  ldi   mem_value0, 0xC7
+  ldi   mem_value1, 0x13
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 850
+  ldi   mem_value0, 0x10
+  ldi   mem_value1, 0x70
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+_PINE_HUMIDITY:
+
+  ; Low: < 500
+  ldi   mem_value0, 0xEB
+  ldi   mem_value1, 0x41
+  movw  low_sensor_h:low_sensor_l, mem_value1:mem_value0
+  ; High: > 900
+  ldi   mem_value0, 0xA7
+  ldi   mem_value1, 0x76
+  movw  high_sensor_h:high_sensor_l, mem_value1:mem_value0
+
+  rjmp  _END_PLANT_SELECTION
+
+
+OK_SENSOR_RESULT:
+
+  ; Arduino D12 - PB4 - Luminosity
+  ; Arduino D9  - PB1 - Temperature
+  ; Arduino D6  - PD6 - Humidity
+
+  sbrc  sensor, 1
+  sbr   led_output_b, 4
+  sbrc  sensor, 0
+  sbr   led_output_b, 1
+  sbr   led_output_d, 6  
+
+  rjmp  _END_SENSOR_COMPARE
+
+
+LOW_SENSOR_RESULT:
+
+  ; Arduino D13 - PB5 - Luminosity
+  ; Arduino D10 - PB2 - Temperature
+  ; Arduino D7  - PD7 - Humidity
+
+  sbrc  sensor, 1
+  sbr   led_output_b, 5
+  sbrc  sensor, 0
+  sbr   led_output_b, 2
+  sbr   led_output_d, 7  
+
+  rjmp  _END_SENSOR_COMPARE
+
+
+HIGH_SENSOR_RESULT:
+
+  ; Arduino D11 - PB3 - Luminosity
+  ; Arduino D8  - PB0 - Temperature
+  ; Arduino D5  - PD5 - Humidity
+
+  sbrc  sensor, 1
+  sbr   led_output_b, 3
+  sbrc  sensor, 0
+  sbr   led_output_b, 0
+  sbr   led_output_d, 5  
+
+  rjmp  _END_SENSOR_COMPARE
