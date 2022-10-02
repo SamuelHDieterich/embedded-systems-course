@@ -563,7 +563,7 @@ _END_SENSOR_COMPARE:
 
 SUCCULENT:
 
-  cpi   sensor, 0
+  cpi   sensor, 1
   brlo  _SUCCULENT_LUMINOSITY
   breq  _SUCCULENT_TEMPERATURE
   rjmp  _SUCCULENT_HUMIDITY
@@ -610,7 +610,7 @@ _SUCCULENT_HUMIDITY:
 
 VEGETABLE:
 
-  cpi   sensor, 0
+  cpi   sensor, 1
   brlo  _VEGETABLE_LUMINOSITY
   breq  _VEGETABLE_TEMPERATURE
   rjmp  _VEGETABLE_HUMIDITY
@@ -657,7 +657,7 @@ _VEGETABLE_HUMIDITY:
 
 PINE:
 
-  cpi   sensor, 0
+  cpi   sensor, 1
   brlo  _PINE_LUMINOSITY
   breq  _PINE_TEMPERATURE
   rjmp  _PINE_HUMIDITY
