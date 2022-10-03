@@ -326,8 +326,8 @@ START_MEM:
 
   ; Set appropriate value
   ; Sensor 0: 0x0100
-  ; Sensor 1: 0x01A0
-  ; Sensor 2: 0x0240
+  ; Sensor 1: 0x0230
+  ; Sensor 2: 0x0360
 
   ; Check the number of the sensor
   cpi   sensor, 0
@@ -337,8 +337,8 @@ START_MEM:
 
 _THIRD_POSITION: 
 
-  ldi   mem_address_l, 0x40
-  ldi   mem_address_h, 0x02
+  ldi   mem_address_l, 0x60
+  ldi   mem_address_h, 0x03
 
   ; Return
   ret
@@ -353,8 +353,8 @@ _FIRST_POSITION:
 
 _SECOND_POSITION:
 
-  ldi   mem_address_l, 0xA0
-  ldi   mem_address_h, 0x01
+  ldi   mem_address_l, 0x30
+  ldi   mem_address_h, 0x02
 
   ; Return
   ret
