@@ -241,7 +241,7 @@ MAIN:
   ; REFS1:0 - Voltage reference         = 01 (Vcc=5V)
   ; ADLAR   - Left adjust result        = 0 (Right adjust)
   ; MUX3:0  - Analog channel selection  = Depend on the sensor
-  ldi   temp, (REFS1<<0) || (REFS0<<1)
+  ldi   temp, (0<<REFS1) || (1<<REFS0)
   add   temp, sensor                    ; Set ADC for right sensor
   sts   ADMUX, R16
 
@@ -252,7 +252,7 @@ MAIN:
   ; ADIF    - Interrupt flag      = 0
   ; ADIE    - Interrupt enable    = 0
   ; ADPS2:0 - Prescaler           = 101 (1:32)
-  ldi   temp, (ADEN<<1) || (ADSC<<1) || (ADPS2<<1) || (ADPS1<<0) || (ADPS0<<1)
+  ldi   temp, (1<<ADEN) || (1<<ADSC) || (1<<ADPS2) || (0<<ADPS1) || (1<<ADPS0)
   sts   ADCSRA, temp
 
   ; Read value and save it on register

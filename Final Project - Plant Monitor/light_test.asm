@@ -52,8 +52,8 @@
   ; REFS1:0 - Voltage reference         = 01 (Vcc=5V)
   ; ADLAR   - Left adjust result        = 0 (Right adjust)
   ; MUX3:0  - Analog channel selection  = Depend on the sensor
-  ;ldi   temp, (REFS1<<0) | (REFS0<<1)
-  ldi   temp, 0b01000000
+  ldi   temp, (0<<REFS1) || (1<<REFS0)
+  ;ldi   temp, 0b01000000
   sts   ADMUX, temp
 
   ; Turn on ADC and start conversion
@@ -63,8 +63,8 @@
   ; ADIF    - Interrupt flag      = 0
   ; ADIE    - Interrupt enable    = 0
   ; ADPS2:0 - Prescaler           = 101 (1:32)
-  ;ldi   temp, (ADEN<<1) | (ADSC<<1) | (ADATE<<1) | (ADPS2<<1) | (ADPS1<<0) | (ADPS0<<1)
-  ldi   temp, 0b11100101
+  ldi   temp, (1<<ADEN) || (1<<ADSC) || (1<<ADATE) || (1<<ADPS2) || (0<<ADPS1) || (1<<ADPS0)
+  ;ldi   temp, 0b11100101
   sts   ADCSRA, temp
 
   ; Free running
